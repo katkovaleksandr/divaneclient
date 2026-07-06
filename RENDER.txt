@@ -43,6 +43,7 @@ Render не поддерживает PHP.
 
 5. Environment Variables (добавь):
    JWT_SECRET = любая длинная случайная строка
+   TURNSTILE_SECRET = Secret Key из Cloudflare Turnstile
 
 6. Create Web Service
 

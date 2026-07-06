@@ -20,6 +20,7 @@ const {
     findKeyByValue,
     markKeyUsed
 } = require('./keys');
+const { verifyTurnstile } = require('./turnstile');
 
 const SITE_ADMIN_USERNAME = 'dev';
 
@@ -250,6 +251,12 @@ function createCompatRouter() {
 
     router.post('/users/auth/default', async (req, res) => {
         try {
+            const captcha = req.query.hCaptcha;
+            const remoteIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
+            if (!(await verifyTurnstile(captcha, remoteIp))) {
+                return res.status(400).json('Captcha verification failed');
+            }
+
             const username = String(req.query.username || '').trim();
             const password = decodePassword(req.query.password || '');
             const user = findUserByUsername(username);
@@ -275,6 +282,12 @@ function createCompatRouter() {
 
     router.post('/users/auth/register', async (req, res) => {
         try {
+            const captcha = req.query.hCaptcha;
+            const remoteIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
+            if (!(await verifyTurnstile(captcha, remoteIp))) {
+                return res.status(400).json('Captcha verification failed');
+            }
+
             const username = String(req.query.username || '').trim();
             const email = String(req.query.email || '').trim().toLowerCase();
             const password = decodePassword(req.query.password || '');
