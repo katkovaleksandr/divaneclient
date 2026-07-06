@@ -1,0 +1,5 @@
+node_modules/
+upload-to-infinityfree/
+cloudflare-pages/
+*.zip
+.env

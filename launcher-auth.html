@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Divane — вход в лаунчер</title>
+    <style>
+        :root {
+            --bg: #020202;
+            --surface: rgba(18, 18, 20, 0.92);
+            --text: #fbfbfd;
+            --muted: rgba(255, 255, 255, 0.72);
+            --accent: #8f72ff;
+            --accent-dark: #6a4fd4;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, Segoe UI, sans-serif;
+            padding: 24px;
+        }
+        .card {
+            width: min(100%, 420px);
+            background: var(--surface);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 28px;
+            text-align: center;
+        }
+        h1 { font-size: 1.35rem; margin-bottom: 8px; }
+        p { color: var(--muted); font-size: 0.92rem; line-height: 1.5; margin-bottom: 18px; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            min-height: 46px;
+            border: 0;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #9f85ff 0%, var(--accent-dark) 100%);
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 8px;
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .status { margin-top: 14px; font-size: 0.82rem; color: var(--muted); }
+        .ok { color: #6effa0; }
+        .err { color: #ff8080; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Divane Launcher</h1>
+        <p id="message">Проверяем авторизацию на сайте...</p>
+        <a id="login-link" class="btn btn-secondary" href="/" style="display:none;">Войти на сайте</a>
+        <button id="open-launcher" class="btn" style="display:none;">Открыть лаунчер</button>
+        <div id="status" class="status"></div>
+    </div>
+    <script>
+        const TOKEN_KEYS = ['velka_token', 'token'];
+        const USER_KEY = 'velka_user';
+
+        function getToken() {
+            for (const key of TOKEN_KEYS) {
+                const value = localStorage.getItem(key) || sessionStorage.getItem(key);
+                if (value) return value.trim();
+            }
+            return '';
+        }
+
+        function getUsername() {
+            try {
+                const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
+                if (!raw) return '';
+                const user = JSON.parse(raw);
+                return user.username || '';
+            } catch {
+                return '';
+            }
+        }
+
+        function openLauncher(token, username) {
+            const params = new URLSearchParams();
+            params.set('token', token);
+            if (username) params.set('username', username);
+            window.location.href = 'divane://auth?' + params.toString();
+            document.getElementById('status').textContent = 'Если лаунчер не открылся — запустите Divane Launcher.exe вручную.';
+            document.getElementById('status').className = 'status ok';
+        }
+
+        const token = getToken();
+        const username = getUsername();
+        const msg = document.getElementById('message');
+        const loginLink = document.getElementById('login-link');
+        const openBtn = document.getElementById('open-launcher');
+
+        if (!token) {
+            msg.textContent = 'Сначала войдите в аккаунт на сайте Divane.';
+            loginLink.style.display = 'inline-flex';
+            loginLink.href = '/?auth=login&return=' + encodeURIComponent('/launcher-auth.html');
+        } else {
+            msg.textContent = username
+                ? ('Аккаунт ' + username + ' найден. Передаём сессию в лаунчер.')
+                : 'Сессия найдена. Передаём вход в лаунчер.';
+            openBtn.style.display = 'inline-flex';
+            openBtn.onclick = () => openLauncher(token, username);
+            setTimeout(() => openLauncher(token, username), 600);
+        }
+    </script>
+</body>
+</html>

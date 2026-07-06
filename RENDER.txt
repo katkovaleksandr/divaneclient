@@ -1,0 +1,71 @@
+RENDER — ИНСТРУКЦИЯ
+===================
+
+На экране "Create a new Service" выбери:
+
+  >>> Web Services  →  New Web Service  <<<
+
+НЕ Static Sites (там нет API, вход не заработает).
+НЕ Postgres / Workers / Cron.
+
+═══════════════════════════════════════
+ПОЧЕМУ WEB SERVICE?
+═══════════════════════════════════════
+
+У тебя сайт + API (вход, регистрация, админка).
+Render не поддерживает PHP.
+Готовый Node.js сервер уже есть: папка server/
+
+Он отдаёт и сайт, и /api — всё в одном.
+
+═══════════════════════════════════════
+ШАГИ
+═══════════════════════════════════════
+
+1. GitHub
+   Render работает через GitHub. Если репозитория нет:
+   - github.com → New repository → divane-client
+   - Залей папку: c:\Users\katko\OneDrive\Desktop\divane-site\
+   - (без node_modules — они не нужны в git)
+
+2. Render → Web Services → New Web Service
+
+3. Connect GitHub → выбери репозиторий divane-client
+
+4. Настройки:
+   Name:           divane-client
+   Region:         Frankfurt (EU) или ближайший
+   Branch:         main
+   Runtime:        Node
+   Build Command:  cd server && npm install
+   Start Command:  cd server && npm start
+   Plan:           Free
+
+5. Environment Variables (добавь):
+   JWT_SECRET = любая длинная случайная строка
+
+6. Create Web Service
+
+7. Дождись Deploy — получишь URL:
+   https://divane-client.onrender.com
+
+═══════════════════════════════════════
+СВОЙ ДОМЕН
+═══════════════════════════════════════
+
+Render → divane-client → Settings → Custom Domains
+→ добавь divaneclient.gt.tc или divaneclient.fun
+
+═══════════════════════════════════════
+ВАЖНО
+═══════════════════════════════════════
+
+- Используй папку divane-site (не upload-to-infinityfree)
+  там app.js уже ходит в /api (работает с Node)
+
+- Free план: сервер засыпает через 15 мин без посещений,
+  первый заход — подождать ~30 сек
+
+- Файл render.yaml в корне — Render подхватит настройки сам
+
+Нужна помощь с GitHub — напиши, проведу по шагам.
