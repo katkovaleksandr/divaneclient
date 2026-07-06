@@ -174,7 +174,7 @@ function requireAdmin(req, res) {
 function sessionPayload(user, token) {
     return {
         authStatus: true,
-        id: user.id,
+        id: String(uidForUser(user)),
         username: user.username,
         email: user.email,
         isEmailVerified: false,
