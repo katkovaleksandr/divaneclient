@@ -1,0 +1,17 @@
+{
+  "ajaxUrl": "/api/",
+  "url": "https://divaneclient.fun",
+  "shortClientName": "Divane",
+  "clientColor": "#8f72ff",
+  "supportEmail": "katkovaleksandr2014@gmail.com",
+  "turnStileSiteKey": "",
+  "funpayLink": "https://t.me/divaneclient",
+  "resellerLink": null,
+  "socials": {
+    "discord": "https://discord.gg/UcX7WAhuR4",
+    "telegram": "https://t.me/divaneclient"
+  },
+  "media": {
+    "first": "https://t.me/divaneclient"
+  }
+}

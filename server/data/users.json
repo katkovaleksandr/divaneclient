@@ -19,7 +19,7 @@
       "username": "dev",
       "email": "katkovaleksandr2014@gmail.com",
       "passwordHash": "$2a$10$i5hU.JxBFjKdYdC6STYVx.7Pk13zqeRoys3V1KSRK2LpAKru5wir6",
-      "role": "USER",
+      "role": "ADMIN",
       "regDate": "2026-07-05T14:49:20.429Z",
       "hwid": "",
       "ramAmount": 4096,

@@ -7,7 +7,8 @@ const {
     findUserById,
     createUser,
     updateUser,
-    publicUser
+    publicUser,
+    readDb
 } = require('./db');
 const {
     signToken,
@@ -16,6 +17,14 @@ const {
     authMiddleware,
     adminMiddleware
 } = require('./auth');
+const {
+    createKeysBatch,
+    listKeysExport,
+    deleteKeyByValue,
+    findKeyByValue,
+    markKeyUsed
+} = require('./keys');
+const { createCompatRouter } = require('./compat');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -50,6 +59,58 @@ function hasActiveSubscription(user) {
     if (!outDate) return false;
     return new Date(outDate).getTime() > Date.now();
 }
+
+function subscriptionPatchForDays(user, days) {
+    const count = parseInt(days, 10);
+    if (!count || count <= 0) return {};
+
+    const sub = user.subscription || { outDate: null, entDate: null };
+    const now = Date.now();
+    let base = now;
+    if (sub.outDate) {
+        const existing = new Date(sub.outDate).getTime();
+        if (!Number.isNaN(existing) && existing > now) {
+            base = existing;
+        }
+    }
+
+    return {
+        subscription: {
+            entDate: sub.entDate || new Date(now).toISOString(),
+            outDate: new Date(base + count * 86400000).toISOString()
+        }
+    };
+}
+
+function adminExportUser(user) {
+    return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        regDate: user.regDate,
+        hasSubscription: hasActiveSubscription(user)
+    };
+}
+
+function normalizeRole(role) {
+    const r = String(role || '').toUpperCase();
+    if (r === 'ADMINISTRATOR') return 'ADMIN';
+    if (r === 'MODERATOR') return 'MODER';
+    const allowed = ['USER', 'BETA', 'MEDIA', 'MODER', 'ADMIN', 'OWNER', 'BANNED'];
+    return allowed.includes(r) ? r : 'USER';
+}
+
+function randomPassword(length = 10) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let out = '';
+    for (let i = 0; i < length; i++) {
+        out += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return out;
+}
+
+app.use('/api', createCompatRouter());
 
 app.post('/api/auth/register', async (req, res) => {
     try {
@@ -157,38 +218,82 @@ app.post('/api/media/getPromoInfoForMedia', authMiddleware, (_req, res) => {
 });
 
 app.post('/api/admin/give/check-admin-panel', authMiddleware, attachUser, (req, res) => {
-    if (!['ADMIN', 'OWNER'].includes(req.user.role)) {
-        return res.json({ admin: false });
-    }
-    res.json({ admin: true });
+    const isAdmin = ['ADMIN', 'OWNER'].includes(req.user.role)
+        || req.user.username.toLowerCase() === 'dev';
+    res.json({ admin: isAdmin });
 });
 
 app.post('/api/admin/give/user', authMiddleware, attachUser, adminMiddleware, (_req, res) => {
-    res.json([]);
+    const db = readDb();
+    res.json(db.users.map(adminExportUser));
 });
 
 app.post('/api/admin/give/keys', authMiddleware, attachUser, adminMiddleware, (_req, res) => {
-    res.json([]);
+    res.json(listKeysExport('regular'));
 });
 
 app.post('/api/admin/give/hwidKeysGet', authMiddleware, attachUser, adminMiddleware, (_req, res) => {
-    res.json([]);
+    res.json(listKeysExport('hwid'));
 });
 
 app.post('/api/admin/give/promocode', authMiddleware, attachUser, adminMiddleware, (_req, res) => {
     res.json([]);
 });
 
-app.put('/api/admin/read/user', authMiddleware, attachUser, adminMiddleware, (_req, res) => {
-    res.json({ message: 'Updated' });
+app.put('/api/admin/read/user', authMiddleware, attachUser, adminMiddleware, async (req, res) => {
+    try {
+        const username = String(req.body.username || req.query.username || '').trim();
+        const email = String(req.body.email || req.query.email || '').trim();
+        const role = req.body.role || req.query.role || '';
+        const subs = parseInt(req.body.subs || req.query.subs, 10) || 0;
+        const passwordReset = req.body.passwordReset === 'true' || req.query.passwordReset === 'true';
+        const hwidReset = req.body.hwidReset === 'true' || req.query.hwidReset === 'true';
+
+        if (!username) {
+            return res.status(400).json({ message: 'Username required' });
+        }
+
+        const user = findUserByUsername(username);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const patch = {};
+        if (email) patch.email = email.toLowerCase();
+        if (role) patch.role = normalizeRole(role);
+        if (subs > 0) Object.assign(patch, subscriptionPatchForDays(user, subs));
+        if (hwidReset) patch.hwid = '';
+        if (passwordReset) {
+            const plain = randomPassword(10);
+            patch.passwordHash = await hashPassword(plain);
+            updateUser(user.id, patch);
+            return res.send(`Updated. New password: ${plain}`);
+        }
+
+        updateUser(user.id, patch);
+        return res.json({ message: 'Updated', user: adminExportUser(findUserById(user.id)) });
+    } catch (error) {
+        console.error('[admin update user]', error);
+        return res.status(500).json({ message: 'Server error' });
+    }
 });
 
-app.post('/api/admin/create/keys', authMiddleware, attachUser, adminMiddleware, (_req, res) => {
-    res.json({ message: 'Created' });
+app.post('/api/admin/create/keys', authMiddleware, attachUser, adminMiddleware, (req, res) => {
+    const days = parseInt(req.body.days || req.query.days, 10) || 0;
+    const quantity = parseInt(req.body.quantity || req.query.quantity, 10) || 1;
+    const type = String(req.body.type || req.query.type || 'regular');
+    const bucket = type === 'hwid' ? 'hwid' : 'regular';
+    const created = createKeysBatch(bucket, quantity, days, req.user.username);
+    res.json({ keys: created, message: 'Created' });
 });
 
-app.post('/api/admin/read/deleteKeys', authMiddleware, attachUser, adminMiddleware, (_req, res) => {
-    res.json({ message: 'Deleted' });
+app.post('/api/admin/read/deleteKeys', authMiddleware, attachUser, adminMiddleware, (req, res) => {
+    const id = String(req.body.id || req.query.id || '');
+    const value = String(req.body.value || req.query.value || '');
+    if (value ? deleteKeyByValue(value) : false) {
+        return res.json({ message: 'Deleted' });
+    }
+    return res.status(404).json({ message: 'Key not found' });
 });
 
 app.post('/api/launcher/bind-hwid', authMiddleware, attachUser, (req, res) => {
