@@ -1,13 +1,21 @@
 const VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
+function isTurnstileRequired() {
+    return process.env.TURNSTILE_REQUIRED === 'true';
+}
+
 async function verifyTurnstile(token, remoteIp) {
+    if (!isTurnstileRequired()) {
+        return true;
+    }
+
     const secret = process.env.TURNSTILE_SECRET;
     if (!secret) {
         return true;
     }
 
     const response = String(token || '').trim();
-    if (!response) {
+    if (!response || response === 'ok') {
         return false;
     }
 
@@ -33,4 +41,4 @@ async function verifyTurnstile(token, remoteIp) {
     }
 }
 
-module.exports = { verifyTurnstile };
+module.exports = { verifyTurnstile, isTurnstileRequired };
