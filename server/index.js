@@ -334,21 +334,34 @@ app.get('/api/launcher/session', authMiddleware, attachUser, (req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
+    let visualFix = false;
+    try {
+        const css = fs.readFileSync(path.join(ASSETS_ROOT, 'override.css'), 'utf8');
+        visualFix = css.includes('night-3-Ba3J82nB.jpg');
+    } catch {
+        visualFix = false;
+    }
     res.json({
         ok: true,
         service: 'divaneclient.fun',
         assetsDir: ASSETS_ROOT,
         assetsExist: fs.existsSync(ASSETS_ROOT),
         dataDir: process.env.DATA_DIR || path.join(__dirname, 'data'),
-        database: isUsingPostgres() ? 'postgresql' : 'file'
+        database: isUsingPostgres() ? 'postgresql' : 'file',
+        visualFix
     });
 });
 
 app.use('/assets', express.static(ASSETS_ROOT, {
     etag: true,
-    maxAge: '7d',
+    maxAge: '1h',
     index: false,
-    fallthrough: false
+    fallthrough: false,
+    setHeaders(res, filePath) {
+        if (filePath.endsWith('override.css')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    }
 }));
 
 app.use(express.static(SITE_ROOT, {
