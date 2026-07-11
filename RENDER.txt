@@ -45,6 +45,9 @@ Render не поддерживает PHP.
    JWT_SECRET = любая длинная случайная строка
    TURNSTILE_SECRET = Secret Key из Cloudflare Turnstile
 
+   База данных создаётся АВТОМАТИЧЕСКИ из render.yaml (PostgreSQL Free).
+   Ничего настраивать не нужно — DATABASE_URL подставится сам.
+
 6. Create Web Service
 
 7. Дождись Deploy — получишь URL:
@@ -68,5 +71,7 @@ Render → divane-client → Settings → Custom Domains
   первый заход — подождать ~30 сек
 
 - Файл render.yaml в корне — Render подхватит настройки сам
+  (включая PostgreSQL для хранения аккаунтов — MongoDB не нужен)
 
-Нужна помощь с GitHub — напиши, проведу по шагам.
+- Если сайт уже задеплоен: Render Dashboard → Sync Blueprint
+  или Manual Deploy после обновления файлов

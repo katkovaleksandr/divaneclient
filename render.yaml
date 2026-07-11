@@ -1,12 +1,20 @@
+databases:
+  - name: divane-db
+    plan: free
+
 services:
   - type: web
     name: divane-client
     runtime: node
     plan: free
-    buildCommand: cd server && npm install
+    buildCommand: node scripts/restore-assets.js && cd server && npm install
     startCommand: cd server && npm start
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: "20"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: divane-db
+          property: connectionString
       - key: JWT_SECRET
-        generateValue: true
+        sync: false

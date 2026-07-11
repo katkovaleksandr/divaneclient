@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Оплата — Divane Client</title>
+  <style>
+    :root {
+      --bg: #0b0b0d;
+      --card: #121316;
+      --border: #2a2b30;
+      --text: #f2f2f5;
+      --muted: #9a9aa3;
+      --accent: #8f72ff;
+      --ok: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1a1430 0%, var(--bg) 45%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(560px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    }
+    h1 { margin: 0 0 8px; font-size: 1.5rem; }
+    .sub { color: var(--muted); margin-bottom: 24px; }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .row:last-of-type { border-bottom: none; }
+    .label { color: var(--muted); }
+    .value { font-weight: 600; text-align: right; word-break: break-all; }
+    .amount { color: var(--accent); font-size: 1.25rem; }
+    .pay-box {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 12px;
+      background: rgba(143, 114, 255, 0.08);
+      border: 1px solid rgba(143, 114, 255, 0.25);
+    }
+    .pay-box strong { display: block; margin-bottom: 8px; }
+    .steps { margin: 20px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.6; }
+    .btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 12px 18px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .btn.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      margin-left: 8px;
+    }
+    .error { color: #f87171; }
+    .status { color: var(--ok); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card" id="app">
+    <h1>Загрузка заказа...</h1>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const orderId = params.get('order');
+    const app = document.getElementById('app');
+
+    function fmtCard(num) {
+      return String(num).replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    }
+
+    async function load() {
+      if (!orderId) {
+        app.innerHTML = '<h1 class="error">Заказ не найден</h1><p class="sub">Неверная ссылка оплаты.</p><a class="btn secondary" href="/">На главную</a>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/payments/order/' + encodeURIComponent(orderId));
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Order not found');
+
+        const payDetail = data.paymentType === 'SBP'
+          ? `<div class="pay-box"><strong>Переведите по СБП на номер:</strong><div class="value amount">${data.phone}</div></div>`
+          : `<div class="pay-box"><strong>Переведите на карту MIR:</strong><div class="value amount">${fmtCard(data.card)}</div></div>`;
+
+        app.innerHTML = `
+          <h1>Оплата заказа</h1>
+          <p class="sub">Переведите точную сумму и подтвердите оплату в Discord.</p>
+          <div class="row"><span class="label">Заказ</span><span class="value">#${data.id}</span></div>
+          <div class="row"><span class="label">Аккаунт</span><span class="value">${data.username}</span></div>
+          <div class="row"><span class="label">Товар</span><span class="value">${data.productLabel}</span></div>
+          <div class="row"><span class="label">Способ</span><span class="value">${data.paymentLabel}</span></div>
+          <div class="row"><span class="label">Сумма</span><span class="value amount">${data.amount} ₽</span></div>
+          <div class="row"><span class="label">Статус</span><span class="value status">${data.status === 'pending' ? 'Ожидает оплаты' : data.status}</span></div>
+          ${payDetail}
+          <ol class="steps">
+            <li>Переведите <strong>${data.amount} ₽</strong> на указанные реквизиты.</li>
+            <li>В комментарии к переводу укажите номер заказа: <strong>#${data.id}</strong>.</li>
+            <li>Зайдите в Discord и отправьте скриншот оплаты + ваш логин <strong>${data.username}</strong>.</li>
+            <li>После проверки подписка будет выдана вручную.</li>
+          </ol>
+          <a class="btn" href="${data.discord}" target="_blank" rel="noopener">Подтвердить в Discord</a>
+          <a class="btn secondary" href="/">На главную</a>
+        `;
+      } catch (e) {
+        app.innerHTML = `<h1 class="error">Ошибка</h1><p class="sub">${e.message}</p><a class="btn secondary" href="/">На главную</a>`;
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

@@ -21,6 +21,12 @@ const {
     markKeyUsed
 } = require('./keys');
 const { verifyTurnstile } = require('./turnstile');
+const {
+    PAYMENT_METHODS,
+    createOrder,
+    getOrder,
+    publicOrder
+} = require('./payments');
 
 const SITE_ADMIN_USERNAME = 'dev';
 
@@ -245,8 +251,17 @@ function createCompatRouter() {
         res.json(ADDITIONAL_PRODUCTS);
     });
 
-    router.get('/payments/getMethods', (_req, res) => {
-        res.json([]);
+    router.get('/payments/getMethods', (req, res) => {
+        if (!requireAuth(req, res)) return;
+        res.json(PAYMENT_METHODS);
+    });
+
+    router.get('/payments/order/:orderId', (req, res) => {
+        const order = getOrder(String(req.params.orderId || '').trim());
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+        return res.json(publicOrder(order));
     });
 
     router.post('/users/auth/default', async (req, res) => {
@@ -516,8 +531,35 @@ function createCompatRouter() {
         res.json([]);
     });
 
-    router.post('/payments/frontend/create', (_req, res) => {
-        res.status(501).json('Payments not configured. Contact support in Telegram.');
+    router.post('/payments/frontend/create', (req, res) => {
+        const user = requireAuth(req, res);
+        if (!user) return;
+
+        const productId = String(req.query.id || '').trim();
+        const paymentType = String(req.query.paymentType || '').trim();
+        const email = String(req.query.inputBoxEmail || req.query.email || '').trim();
+
+        try {
+            const order = createOrder({
+                user,
+                productId,
+                paymentType,
+                email,
+                subscriptionProducts: SUBSCRIPTION_PRODUCTS,
+                additionalProducts: ADDITIONAL_PRODUCTS
+            });
+            const paymentUrl = `/payment.html?order=${encodeURIComponent(order.id)}`;
+            return res.json(paymentUrl);
+        } catch (error) {
+            if (error.message === 'PRODUCT_NOT_FOUND') {
+                return res.status(400).json('Product not found');
+            }
+            if (error.message === 'PAYMENT_METHOD_NOT_FOUND') {
+                return res.status(400).json('Payment method not found');
+            }
+            console.error('[payments/create]', error);
+            return res.status(500).json('Payment creation failed');
+        }
     });
 
     router.post('/payments/promocodes/apply', (_req, res) => {

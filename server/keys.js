@@ -1,8 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const { DATA_DIR } = require('./paths');
 
-const KEYS_PATH = path.join(__dirname, 'data', 'keys.json');
+const KEYS_PATH = path.join(DATA_DIR, 'keys.json');
 
 function ensureKeys() {
     const dir = path.dirname(KEYS_PATH);

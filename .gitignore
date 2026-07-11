@@ -3,3 +3,5 @@ upload-to-infinityfree/
 cloudflare-pages/
 *.zip
 .env
+server/data/users.backup.json
+server/data/orders.json

@@ -1,0 +1,32 @@
+{
+  "users": [
+    {
+      "id": "69cb694a-6c29-4c44-952c-335983e0512c",
+      "username": "divane",
+      "email": "admin@divane.fun",
+      "passwordHash": "$2a$10$SIdgdsnrNPXrbC/XaaELgOoD5KsWiByt18EZ075lq9jTuZLuGVjFi",
+      "role": "USER",
+      "regDate": "2026-07-05T14:47:02.662Z",
+      "hwid": "",
+      "ramAmount": 4096,
+      "subscription": {
+        "outDate": null,
+        "entDate": null
+      }
+    },
+    {
+      "id": "960b7091-9bea-4dd5-9a1f-f7a261494a54",
+      "username": "dev",
+      "email": "katkovaleksandr2014@gmail.com",
+      "passwordHash": "$2a$10$i5hU.JxBFjKdYdC6STYVx.7Pk13zqeRoys3V1KSRK2LpAKru5wir6",
+      "role": "ADMIN",
+      "regDate": "2026-07-05T14:49:20.429Z",
+      "hwid": "",
+      "ramAmount": 4096,
+      "subscription": {
+        "outDate": null,
+        "entDate": null
+      }
+    }
+  ]
+}

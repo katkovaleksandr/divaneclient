@@ -25,7 +25,9 @@ const {
     createUser,
     updateUser,
     publicUser,
-    readDb
+    readDb,
+    initDb,
+    isUsingPostgres
 } = require('./db');
 const {
     signToken,
@@ -45,7 +47,8 @@ const { createCompatRouter } = require('./compat');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SITE_ROOT = path.join(__dirname, '..');
+const SITE_ROOT = process.env.SITE_ROOT || path.join(__dirname, '..');
+const ASSETS_ROOT = path.join(SITE_ROOT, 'assets');
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
@@ -226,8 +229,8 @@ app.post('/api/settings/ram', authMiddleware, attachUser, (req, res) => {
     res.json({ ramAmount });
 });
 
-app.get('/api/payment/createPlatega', authMiddleware, (_req, res) => {
-    res.status(501).json({ message: 'Payments not configured' });
+app.get('/api/payment/createPlatega', authMiddleware, (req, res) => {
+    res.redirect('/#subscriptions');
 });
 
 app.post('/api/media/getPromoInfoForMedia', authMiddleware, (_req, res) => {
@@ -331,17 +334,53 @@ app.get('/api/launcher/session', authMiddleware, attachUser, (req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, service: 'divaneclient.fun' });
+    res.json({
+        ok: true,
+        service: 'divaneclient.fun',
+        assetsDir: ASSETS_ROOT,
+        assetsExist: fs.existsSync(ASSETS_ROOT),
+        dataDir: process.env.DATA_DIR || path.join(__dirname, 'data'),
+        database: isUsingPostgres() ? 'postgresql' : 'file'
+    });
 });
 
-app.use(express.static(SITE_ROOT, { index: 'index.html' }));
+app.use('/assets', express.static(ASSETS_ROOT, {
+    etag: true,
+    maxAge: '7d',
+    index: false,
+    fallthrough: false
+}));
+
+app.use(express.static(SITE_ROOT, {
+    index: false,
+    fallthrough: true
+}));
 
 app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api/')) return next();
-    res.sendFile(path.join(SITE_ROOT, 'index.html'));
+    if (req.path.startsWith('/api/')) {
+        return next();
+    }
+    if (req.path.startsWith('/assets/')) {
+        return res.status(404).send('Asset not found');
+    }
+    const indexPath = path.join(SITE_ROOT, 'index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            console.error('[spa]', err.message);
+            res.status(500).send('Server error');
+        }
+    });
 });
 
-app.listen(PORT, () => {
-    console.log(`Divane site running at http://localhost:${PORT}`);
-    console.log(`API: http://localhost:${PORT}/api`);
+initDb().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Divane site running at http://localhost:${PORT}`);
+        console.log(`API: http://localhost:${PORT}/api`);
+        console.log(`Site root: ${SITE_ROOT}`);
+        console.log(`Assets root: ${ASSETS_ROOT} (exists: ${fs.existsSync(ASSETS_ROOT)})`);
+        console.log(`Data dir: ${process.env.DATA_DIR || path.join(__dirname, 'data')}`);
+    });
+}).catch((error) => {
+    console.error('[startup] Failed to initialize database:', error);
+    process.exit(1);
 });
