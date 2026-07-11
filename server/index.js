@@ -156,7 +156,7 @@ app.post('/api/auth/register', async (req, res) => {
 
         const passwordHash = await hashPassword(password);
         const user = createUser({ username, email, passwordHash, role: 'USER' });
-        const token = signToken(user.id);
+        const token = signToken(user.id, user.username);
 
         return res.json({
             token,
@@ -179,7 +179,7 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ message: 'Неверный логин или пароль' });
         }
 
-        const token = signToken(user.id);
+        const token = signToken(user.id, user.username);
         return res.json({
             token,
             message: 'OK',

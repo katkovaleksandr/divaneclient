@@ -40,7 +40,10 @@ const {
     toPublicPromocode
 } = require('./promocodes');
 
-const SITE_ADMIN_USERNAME = 'dev';
+const ADMIN_USERNAMES = (process.env.ADMIN_USERNAMES || 'dev,robert153')
+    .split(',')
+    .map((name) => name.trim().toLowerCase())
+    .filter(Boolean);
 
 const SUBSCRIPTION_PRODUCTS = [
     { time: 30, price: 400, type: 'month' },
@@ -148,11 +151,23 @@ function toFrontendRole(role) {
 function isAdmin(user) {
     if (!user) return false;
     if (['ADMIN', 'OWNER'].includes(user.role)) return true;
-    return user.username.toLowerCase() === SITE_ADMIN_USERNAME.toLowerCase();
+    return ADMIN_USERNAMES.includes(user.username.toLowerCase());
 }
 
 function getToken(req) {
+    const authHeader = String(req.headers.authorization || '');
+    if (authHeader.startsWith('Bearer ')) {
+        return authHeader.slice(7).trim();
+    }
     return String(req.query.token || req.body?.token || '').trim();
+}
+
+function getRequestField(req, name) {
+    const value = req.query?.[name] ?? req.body?.[name];
+    if (value === undefined || value === null) {
+        return '';
+    }
+    return String(value).trim();
 }
 
 function userFromToken(req) {
@@ -160,7 +175,11 @@ function userFromToken(req) {
     if (!token) return null;
     try {
         const payload = verifyToken(token);
-        return findUserById(payload.sub);
+        let user = findUserById(payload.sub);
+        if (!user && payload.username) {
+            user = findUserByUsername(payload.username);
+        }
+        return user;
     } catch {
         return null;
     }
@@ -294,7 +313,7 @@ function createCompatRouter() {
                 return res.status(400).json('Account is banned');
             }
 
-            const token = signToken(user.id);
+            const token = signToken(user.id, user.username);
             return res.json({
                 authStatus: true,
                 authMessage: 'Login successful!',
@@ -338,7 +357,7 @@ function createCompatRouter() {
                 passwordHash,
                 role: 'USER'
             });
-            const token = signToken(user.id);
+            const token = signToken(user.id, user.username);
 
             return res.json({
                 authStatus: true,
@@ -522,9 +541,9 @@ function createCompatRouter() {
         const admin = requireAdmin(req, res);
         if (!admin) return;
 
-        const name = String(req.body?.promocode || req.query.promocode || '').trim();
-        const discount = req.body?.bet ?? req.query.bet;
-        const maxUsages = req.body?.maxUsages ?? req.query.maxUsages;
+        const name = getRequestField(req, 'promocode');
+        const discount = req.body?.bet ?? req.query?.bet;
+        const maxUsages = req.body?.maxUsages ?? req.query?.maxUsages;
 
         try {
             const result = createPromocode({
@@ -566,9 +585,9 @@ function createCompatRouter() {
     router.post('/admin/promocodes/patch', (req, res) => {
         if (!requireAdmin(req, res)) return;
 
-        const name = String(req.body?.promocode || req.query.promocode || '').trim();
-        const discount = req.body?.bet ?? req.query.bet;
-        const maxUsages = req.body?.maxUsages ?? req.query.maxUsages;
+        const name = getRequestField(req, 'promocode');
+        const discount = req.body?.bet ?? req.query?.bet;
+        const maxUsages = req.body?.maxUsages ?? req.query?.maxUsages;
 
         try {
             const result = patchPromocode({ name, discount, maxUsages });
