@@ -21,10 +21,6 @@ function readSiteConfig() {
     }
 }
 
-function paymentPhone() {
-    return process.env.PAYMENT_PHONE || '+79103441485';
-}
-
 function paymentCard() {
     return process.env.PAYMENT_CARD || '2202206241727739';
 }
@@ -37,6 +33,46 @@ function funpayUrl() {
 
 function discordLink() {
     return process.env.DISCORD_SUPPORT || 'https://discord.gg/PaCYp5XbP4';
+}
+
+function sbpQrImageUrl() {
+    const configured = process.env.SBP_QR_IMAGE || readSiteConfig().sbpQrImage;
+    if (!configured) return null;
+    return String(configured).trim();
+}
+
+function sbpQrLinkUrl() {
+    const configured = process.env.SBP_QR_URL || readSiteConfig().sbpQrUrl;
+    if (!configured) return null;
+    return String(configured).trim();
+}
+
+function sbpQrPayload(order) {
+    const imageUrl = sbpQrImageUrl();
+    if (imageUrl) {
+        return {
+            type: 'image',
+            imageUrl,
+            amount: order.amount,
+            orderId: order.id
+        };
+    }
+
+    const linkUrl = sbpQrLinkUrl();
+    if (linkUrl) {
+        return {
+            type: 'link',
+            linkUrl,
+            amount: order.amount,
+            orderId: order.id
+        };
+    }
+
+    return {
+        type: 'missing',
+        amount: order.amount,
+        orderId: order.id
+    };
 }
 
 function ensureOrders() {
@@ -126,7 +162,7 @@ function publicOrder(order) {
         paymentLabel: order.paymentLabel,
         status: order.status,
         createdAt: order.createdAt,
-        phone: order.paymentType === 'SBP' ? paymentPhone() : null,
+        sbpQr: order.paymentType === 'SBP' ? sbpQrPayload(order) : null,
         card: order.paymentType === 'CARD_MIR' ? paymentCard() : null,
         funpayUrl: order.paymentType === 'FUNPAY' ? funpayUrl() : null,
         discord: discordLink()
@@ -135,10 +171,11 @@ function publicOrder(order) {
 
 module.exports = {
     PAYMENT_METHODS,
-    paymentPhone,
     paymentCard,
     funpayUrl,
     discordLink,
+    sbpQrImageUrl,
+    sbpQrLinkUrl,
     createOrder,
     getOrder,
     publicOrder,

@@ -6,6 +6,8 @@
   "supportEmail": "katkovaleksandr2014@gmail.com",
   "turnStileSiteKey": "0x4AAAAAADwgWc9wrz7Q35DR",
   "funpayLink": "https://funpay.com/users/14018761/",
+  "sbpQrImage": "/assets/payments/sbp-qr.png",
+  "sbpQrUrl": null,
   "resellerLink": null,
   "socials": {
     "discord": "https://discord.gg/PaCYp5XbP4",

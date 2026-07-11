@@ -55,6 +55,25 @@
       border: 1px solid rgba(143, 114, 255, 0.25);
     }
     .pay-box strong { display: block; margin-bottom: 8px; }
+    .qr-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 16px 0 8px;
+    }
+    .qr-wrap img {
+      width: 240px;
+      height: 240px;
+      border-radius: 12px;
+      background: #fff;
+      padding: 12px;
+      object-fit: contain;
+    }
+    .qr-hint {
+      margin: 0;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.5;
+    }
     .steps { margin: 20px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.6; }
     .btn {
       display: inline-block;
@@ -89,6 +108,28 @@
       return String(num).replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').trim();
     }
 
+    function sbpQrImageSrc(sbpQr) {
+      if (sbpQr.type === 'image') return sbpQr.imageUrl;
+      if (sbpQr.type === 'link') {
+        return 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=12&data='
+          + encodeURIComponent(sbpQr.linkUrl);
+      }
+      return '';
+    }
+
+    function renderSbpPayBox(sbpQr) {
+      if (sbpQr.type === 'missing') {
+        return `<div class="pay-box"><strong>СБП QR ещё не настроен</strong><p class="qr-hint" style="text-align:left">Администратору нужно загрузить QR-код из банковского приложения в <code>assets/payments/sbp-qr.png</code> или указать ссылку СБП в настройках.</p></div>`;
+      }
+
+      const qrSrc = sbpQrImageSrc(sbpQr);
+      return `<div class="pay-box">
+        <strong>Оплата по СБП</strong>
+        <div class="qr-wrap"><img src="${qrSrc}" alt="QR-код для оплаты по СБП"></div>
+        <p class="qr-hint">Отсканируйте QR в приложении банка и переведите <strong>${sbpQr.amount} ₽</strong>.<br>В комментарии укажите заказ <strong>#${sbpQr.orderId}</strong>.</p>
+      </div>`;
+    }
+
     async function load() {
       if (!orderId) {
         app.innerHTML = '<h1 class="error">Заказ не найден</h1><p class="sub">Неверная ссылка оплаты.</p><a class="btn secondary" href="/">На главную</a>';
@@ -100,7 +141,7 @@
         if (!res.ok) throw new Error(data.message || 'Order not found');
 
         const payDetail = data.paymentType === 'SBP'
-          ? `<div class="pay-box"><strong>Переведите по СБП на номер:</strong><div class="value amount">${data.phone}</div></div>`
+          ? renderSbpPayBox(data.sbpQr)
           : data.paymentType === 'CARD_MIR'
           ? `<div class="pay-box"><strong>Переведите на карту:</strong><div class="value amount">${fmtCard(data.card)}</div></div>`
           : data.paymentType === 'FUNPAY'
@@ -118,7 +159,7 @@
           <div class="row"><span class="label">Статус</span><span class="value status">${data.status === 'pending' ? 'Ожидает оплаты' : data.status}</span></div>
           ${payDetail}
           <ol class="steps">
-            <li>${data.paymentType === 'FUNPAY' ? `Оформите покупку на FunPay на сумму <strong>${data.amount} ₽</strong>.` : `Переведите <strong>${data.amount} ₽</strong> на указанные реквизиты.`}</li>
+            <li>${data.paymentType === 'FUNPAY' ? `Оформите покупку на FunPay на сумму <strong>${data.amount} ₽</strong>.` : data.paymentType === 'SBP' ? `Отсканируйте QR-код и переведите <strong>${data.amount} ₽</strong>.` : `Переведите <strong>${data.amount} ₽</strong> на указанные реквизиты.`}</li>
             <li>В комментарии или сообщении укажите номер заказа: <strong>#${data.id}</strong>.</li>
             <li>Зайдите в Discord и отправьте скриншот оплаты + ваш логин <strong>${data.username}</strong>.</li>
             <li>После проверки подписка будет выдана вручную.</li>
