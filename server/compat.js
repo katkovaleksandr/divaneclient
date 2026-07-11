@@ -27,6 +27,18 @@ const {
     getOrder,
     publicOrder
 } = require('./payments');
+const {
+    getAllPromocodesMap,
+    getPromocode,
+    createPromocode,
+    patchPromocode,
+    deletePromocode,
+    resetPromocodeUsages,
+    clearPromocodeStatistics,
+    getPromocodeStatistics,
+    applyPromocode,
+    toPublicPromocode
+} = require('./promocodes');
 
 const SITE_ADMIN_USERNAME = 'dev';
 
@@ -503,7 +515,121 @@ function createCompatRouter() {
 
     router.post('/admin/promocodes/getAll', (req, res) => {
         if (!requireAdmin(req, res)) return;
-        res.json({});
+        return res.json(getAllPromocodesMap());
+    });
+
+    router.post('/admin/promocodes/create', (req, res) => {
+        const admin = requireAdmin(req, res);
+        if (!admin) return;
+
+        const name = String(req.body?.promocode || req.query.promocode || '').trim();
+        const discount = req.body?.bet ?? req.query.bet;
+        const maxUsages = req.body?.maxUsages ?? req.query.maxUsages;
+
+        try {
+            const result = createPromocode({
+                name,
+                discount,
+                maxUsages,
+                createdBy: admin.username
+            });
+            if (result.duplicate) {
+                return res.status(400).json('Данный промокод уже существует');
+            }
+            return res.json(`Promocode ${result.promocode.name} created successfully`);
+        } catch (error) {
+            if (error.message === 'INVALID_NAME') {
+                return res.status(400).json('Invalid promocode name');
+            }
+            if (error.message === 'INVALID_DISCOUNT') {
+                return res.status(400).json('Discount must be between 1 and 100');
+            }
+            if (error.message === 'INVALID_MAX_USAGES') {
+                return res.status(400).json('Max activations must be greater than 0');
+            }
+            console.error('[promocodes/create]', error);
+            return res.status(500).json('Failed to create promocode');
+        }
+    });
+
+    router.post('/admin/promocodes/delete', (req, res) => {
+        if (!requireAdmin(req, res)) return;
+
+        const name = String(req.body?.promocode || req.query.promocode || '').trim();
+        const result = deletePromocode(name);
+        if (result.missing) {
+            return res.status(404).json('This promo code was not found');
+        }
+        return res.json('Promocode deleted successfully');
+    });
+
+    router.post('/admin/promocodes/patch', (req, res) => {
+        if (!requireAdmin(req, res)) return;
+
+        const name = String(req.body?.promocode || req.query.promocode || '').trim();
+        const discount = req.body?.bet ?? req.query.bet;
+        const maxUsages = req.body?.maxUsages ?? req.query.maxUsages;
+
+        try {
+            const result = patchPromocode({ name, discount, maxUsages });
+            if (result.missing) {
+                return res.status(404).json('This promo code was not found');
+            }
+            return res.json('Promocode updated successfully');
+        } catch (error) {
+            if (error.message === 'INVALID_DISCOUNT') {
+                return res.status(400).json('Discount must be between 1 and 100');
+            }
+            if (error.message === 'INVALID_MAX_USAGES') {
+                return res.status(400).json('Max activations must be greater than 0');
+            }
+            console.error('[promocodes/patch]', error);
+            return res.status(500).json('Failed to update promocode');
+        }
+    });
+
+    router.post('/admin/promocodes/resetUsages', (req, res) => {
+        if (!requireAdmin(req, res)) return;
+
+        const name = String(req.body?.promocode || req.query.promocode || '').trim();
+        const result = resetPromocodeUsages(name);
+        if (result.missing) {
+            return res.status(404).json('This promo code was not found');
+        }
+        return res.json('Promocode activations reset successfully');
+    });
+
+    router.post('/admin/promocodes/statistic/clearPayments', (req, res) => {
+        if (!requireAdmin(req, res)) return;
+
+        const name = String(req.body?.promocode || req.query.promocode || '').trim();
+        const result = clearPromocodeStatistics(name);
+        if (result.missing) {
+            return res.status(404).json('This promo code was not found');
+        }
+        return res.json('Promocode statistics cleared successfully');
+    });
+
+    router.post('/admin/promocodes/get', (req, res) => {
+        if (!requireAdmin(req, res)) return;
+
+        const name = String(req.query.promocode || req.body?.promocode || '').trim();
+        const record = getPromocode(name);
+        if (!record) {
+            return res.status(404).json('This promo code was not found');
+        }
+        return res.json(toPublicPromocode(record));
+    });
+
+    router.post('/admin/promocodes/statistic/get', (req, res) => {
+        if (!requireAdmin(req, res)) return;
+
+        const name = String(req.query.promocode || req.body?.promocode || '').trim();
+        const stats = getPromocodeStatistics(name);
+        if (!stats) {
+            return res.status(404).json('This promo code was not found');
+        }
+        return res.json(stats);
     });
 
     router.post('/admin/finances/getBalance', (req, res) => {
@@ -561,8 +687,23 @@ function createCompatRouter() {
         }
     });
 
-    router.post('/payments/promocodes/apply', (_req, res) => {
-        res.status(404).json('PROMO_CODE_NOT_FOUND');
+    router.post('/payments/promocodes/apply', (req, res) => {
+        const user = requireAuth(req, res);
+        if (!user) return;
+
+        const code = String(req.query.code || req.body?.code || '').trim();
+        if (!code) {
+            return res.status(400).json('PROMO_CODE_NOT_FOUND');
+        }
+
+        const result = applyPromocode(code);
+        if (result.notFound) {
+            return res.status(404).json('PROMO_CODE_NOT_FOUND');
+        }
+        if (result.exhausted) {
+            return res.status(400).json('PROMO_CODE_EXPIRED');
+        }
+        return res.json(String(result.discount));
     });
 
     const stubOk = (_req, res) => res.json('OK');
@@ -576,8 +717,6 @@ function createCompatRouter() {
     router.post('/admin/finances/createInference', stubOk);
     router.post('/admin/finances/updateInferenceStatus', stubOk);
     router.post('/admin/finances/returnCancelledInference', stubOk);
-    router.post('/admin/promocodes/get', (_req, res) => res.json({}));
-    router.post('/admin/promocodes/statistic/get', (_req, res) => res.json({}));
     router.post('/admin/logs/getAllByCategory', (_req, res) => res.json([]));
     router.postForm = null;
 
