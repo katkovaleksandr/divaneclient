@@ -101,7 +101,11 @@
 
         const payDetail = data.paymentType === 'SBP'
           ? `<div class="pay-box"><strong>Переведите по СБП на номер:</strong><div class="value amount">${data.phone}</div></div>`
-          : `<div class="pay-box"><strong>Переведите на карту MIR:</strong><div class="value amount">${fmtCard(data.card)}</div></div>`;
+          : data.paymentType === 'CARD_MIR'
+          ? `<div class="pay-box"><strong>Переведите на карту:</strong><div class="value amount">${fmtCard(data.card)}</div></div>`
+          : data.paymentType === 'FUNPAY'
+          ? `<div class="pay-box"><strong>Оплата через FunPay:</strong><p style="margin:8px 0 0;color:var(--muted)">Перейдите на профиль продавца и оформите заказ. В сообщении укажите номер заказа <strong>#${data.id}</strong> и логин <strong>${data.username}</strong>.</p><a class="btn" href="${data.funpayUrl}" target="_blank" rel="noopener" style="margin-top:12px">Открыть FunPay</a></div>`
+          : '';
 
         app.innerHTML = `
           <h1>Оплата заказа</h1>
@@ -114,8 +118,8 @@
           <div class="row"><span class="label">Статус</span><span class="value status">${data.status === 'pending' ? 'Ожидает оплаты' : data.status}</span></div>
           ${payDetail}
           <ol class="steps">
-            <li>Переведите <strong>${data.amount} ₽</strong> на указанные реквизиты.</li>
-            <li>В комментарии к переводу укажите номер заказа: <strong>#${data.id}</strong>.</li>
+            <li>${data.paymentType === 'FUNPAY' ? `Оформите покупку на FunPay на сумму <strong>${data.amount} ₽</strong>.` : `Переведите <strong>${data.amount} ₽</strong> на указанные реквизиты.`}</li>
+            <li>В комментарии или сообщении укажите номер заказа: <strong>#${data.id}</strong>.</li>
             <li>Зайдите в Discord и отправьте скриншот оплаты + ваш логин <strong>${data.username}</strong>.</li>
             <li>После проверки подписка будет выдана вручную.</li>
           </ol>

@@ -6,16 +6,33 @@ const { DATA_DIR } = require('./paths');
 const ORDERS_PATH = path.join(DATA_DIR, 'orders.json');
 
 const PAYMENT_METHODS = [
-    { enumName: 'SBP', displayName: 'СБП (перевод на номер)' },
-    { enumName: 'CARD_MIR', displayName: 'Карта MIR' }
+    { enumName: 'SBP', displayName: 'СБП' },
+    { enumName: 'CARD_MIR', displayName: 'Карта' },
+    { enumName: 'FUNPAY', displayName: 'FunPay' }
 ];
 
+const CONFIG_PATH = path.join(__dirname, '..', 'config.json');
+
+function readSiteConfig() {
+    try {
+        return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    } catch {
+        return {};
+    }
+}
+
 function paymentPhone() {
-    return process.env.PAYMENT_PHONE || '+7 910 344 14 85';
+    return process.env.PAYMENT_PHONE || '+79103441485';
 }
 
 function paymentCard() {
     return process.env.PAYMENT_CARD || '2202206241727739';
+}
+
+function funpayUrl() {
+    return process.env.FUNPAY_URL
+        || readSiteConfig().funpayLink
+        || 'https://funpay.com/users/14018761/';
 }
 
 function discordLink() {
@@ -111,6 +128,7 @@ function publicOrder(order) {
         createdAt: order.createdAt,
         phone: order.paymentType === 'SBP' ? paymentPhone() : null,
         card: order.paymentType === 'CARD_MIR' ? paymentCard() : null,
+        funpayUrl: order.paymentType === 'FUNPAY' ? funpayUrl() : null,
         discord: discordLink()
     };
 }
@@ -119,6 +137,7 @@ module.exports = {
     PAYMENT_METHODS,
     paymentPhone,
     paymentCard,
+    funpayUrl,
     discordLink,
     createOrder,
     getOrder,

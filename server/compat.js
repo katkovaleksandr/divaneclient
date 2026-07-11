@@ -251,8 +251,7 @@ function createCompatRouter() {
         res.json(ADDITIONAL_PRODUCTS);
     });
 
-    router.get('/payments/getMethods', (req, res) => {
-        if (!requireAuth(req, res)) return;
+    router.get('/payments/getMethods', (_req, res) => {
         res.json(PAYMENT_METHODS);
     });
 
