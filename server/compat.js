@@ -52,7 +52,8 @@ const SUBSCRIPTION_PRODUCTS = [
 ];
 
 const ADDITIONAL_PRODUCTS = [
-    { price: 250, type: 'hwid_reset', display: 'HWID Reset' }
+    { price: 250, type: 'hwid_reset', display: 'HWID Reset' },
+    { price: 3333, type: 'zbt', display: 'ЗБТ' }
 ];
 
 function decodePassword(encoded) {
@@ -466,6 +467,9 @@ function createCompatRouter() {
             const sub = parseSubTillInput(req.body.subTill);
             if (sub) patch.subscription = sub;
         }
+        if (req.body?.hwid !== undefined) {
+            patch.hwid = String(req.body.hwid || '').trim().toUpperCase();
+        }
 
         updateUser(target.id, patch);
         return res.json('User updated successfully');
@@ -507,7 +511,10 @@ function createCompatRouter() {
     router.get('/admin/multiactions/keys/getAdditionalProducts', (req, res) => {
         const user = requireAdmin(req, res);
         if (!user) return;
-        return res.json([{ id: 1, title: 'HWID Reset' }]);
+        return res.json([
+            { id: 1, title: 'HWID Reset' },
+            { id: 2, title: 'ЗБТ' }
+        ]);
     });
 
     function handleCreateKeys(req, res, type, days) {
